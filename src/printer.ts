@@ -1,16 +1,12 @@
 import type { HtmlAttribute, HtmlNode, RootNode, FormatOptions } from './types'
 import { sortAttributes } from './attribute-sorter'
 
+// Serialises an attribute, normalising internal whitespace in the value so that
+// values written across multiple lines in the source are collapsed to one line.
 export function serializeAttribute(attr: HtmlAttribute): string {
-  return attr.rawSource
-}
-
-// Measures the single-line width of an attribute, normalising internal whitespace
-// so that multi-line values in the source don't inflate the measurement.
-function measureAttribute(attr: HtmlAttribute): number {
-  if (attr.value === '') return attr.name.length
+  if (attr.value === '') return attr.name
   const normalizedValue = attr.value.replace(/\s+/g, ' ').trim()
-  return attr.name.length + 2 + normalizedValue.length + 1 // name="value"
+  return `${attr.name}="${normalizedValue}"`
 }
 
 export function measureSingleLine(
@@ -22,7 +18,7 @@ export function measureSingleLine(
   const closing = selfClose ? ' />' : '>'
   let len = indent.length + 1 + tagName.length // indent + '<' + tagName
   for (const a of attrs) {
-    len += 1 + measureAttribute(a) // ' ' + attr
+    len += 1 + serializeAttribute(a).length // ' ' + attr
   }
   len += closing.length
   return len
@@ -71,7 +67,7 @@ function formatElement(
   const tagPrefix = `<${node.name} `
   const tagPrefixLen = indent.length + tagPrefix.length
 
-  const firstAttrLen = attrs.length > 0 ? measureAttribute(attrs[0]) : 0
+  const firstAttrLen = attrs.length > 0 ? serializeAttribute(attrs[0]).length : 0
   const closingLen = selfClose ? 3 : 1 // ' />' or '>'
   const caseBFirstLineLen = tagPrefixLen + firstAttrLen + (attrs.length === 1 ? closingLen : 0)
 
