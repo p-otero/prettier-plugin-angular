@@ -71,6 +71,20 @@ describe('formatDocument — Case B (first inline, rest aligned)', () => {
     expect(lines[1]).toBe(' '.repeat(col) + '[options]="myOptionsArray"')
     expect(lines[2]).toBe(' '.repeat(col) + 'class="w-full" />')
   })
+
+  it('aligns attributes correctly for nested elements (non-zero indent)', () => {
+    const opts = { ...defaultOpts, printWidth: 50 }
+    // Wrapping in a parent forces childIndent = '  '
+    const root = makeRoot('<div><p-select inputId="x" [options]="myOptionsArray" class="w-full" /></div>')
+    const result = formatDocument(root, opts)
+    const lines = result.split('\n')
+    // The nested <p-select> line (lines[1]) should start with '  <p-select inputId="x"'
+    expect(lines[1]).toBe('  <p-select inputId="x"')
+    // Continuation lines must be aligned to column (indent=2 + '<p-select '.length=10 = 12)
+    const col = 2 + '<p-select '.length
+    expect(lines[2]).toBe(' '.repeat(col) + '[options]="myOptionsArray"')
+    expect(lines[3]).toBe(' '.repeat(col) + 'class="w-full" />')
+  })
 })
 
 describe('formatDocument — Case C (tag too long)', () => {

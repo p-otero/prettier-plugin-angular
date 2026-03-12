@@ -68,7 +68,7 @@ function formatElement(
   if (singleLineLen <= opts.printWidth) {
     openTag = formatOpenTagInline(node.name, attrs, selfClose)
   } else if (tagPrefixLen < opts.printWidth && caseBFirstLineLen <= opts.printWidth) {
-    const firstAttrCol = tagPrefix.length
+    const firstAttrCol = tagPrefixLen // includes indent so aligned lines are correct for nested elements
     openTag = formatOpenTagAligned(node.name, attrs, firstAttrCol, selfClose)
   } else {
     openTag = formatOpenTagFallback(node.name, attrs, indent, opts.tabWidth, selfClose)
