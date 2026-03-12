@@ -1,4 +1,7 @@
-// Stubs — will be filled in later tasks
-export const parsers = {}
-export const printers = {}
-export const options = {}
+import { parsers } from './parser'
+import { printers } from './printer'
+import { options } from './options'
+
+export { parsers, printers, options }
+
+export default { parsers, printers, options }

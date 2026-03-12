@@ -13,6 +13,7 @@ export interface ParseSourceSpan {
 export interface HtmlAttribute {
   name: string
   value: string // empty string for boolean attributes (e.g. `showIcon`)
+  rawSource: string // verbatim text from source span (e.g. `[attr]="val"` or `showIcon`)
   sourceSpan: ParseSourceSpan
   nameSpan?: ParseSourceSpan
   valueSpan?: ParseSourceSpan
@@ -58,6 +59,7 @@ export interface RootNode {
   type: 'root'
   nodes: HtmlNode[]
   originalText: string
+  hasErrors?: boolean
 }
 
 export type AttributeCategory =

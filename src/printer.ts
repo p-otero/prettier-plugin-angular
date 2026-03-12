@@ -2,8 +2,15 @@ import type { HtmlAttribute, HtmlNode, RootNode, FormatOptions } from './types'
 import { sortAttributes } from './attribute-sorter'
 
 export function serializeAttribute(attr: HtmlAttribute): string {
-  if (attr.value === '') return attr.name
-  return `${attr.name}="${attr.value}"`
+  return attr.rawSource
+}
+
+// Measures the single-line width of an attribute, normalising internal whitespace
+// so that multi-line values in the source don't inflate the measurement.
+function measureAttribute(attr: HtmlAttribute): number {
+  if (attr.value === '') return attr.name.length
+  const normalizedValue = attr.value.replace(/\s+/g, ' ').trim()
+  return attr.name.length + 2 + normalizedValue.length + 1 // name="value"
 }
 
 export function measureSingleLine(
@@ -12,13 +19,17 @@ export function measureSingleLine(
   indent: string,
   selfClose: boolean,
 ): number {
-  const attrsStr = attrs.map(serializeAttribute).join(' ')
   const closing = selfClose ? ' />' : '>'
-  const parts = attrsStr ? `<${tagName} ${attrsStr}${closing}` : `<${tagName}${closing}`
-  return indent.length + parts.length
+  let len = indent.length + 1 + tagName.length // indent + '<' + tagName
+  for (const a of attrs) {
+    len += 1 + measureAttribute(a) // ' ' + attr
+  }
+  len += closing.length
+  return len
 }
 
 export function formatDocument(root: RootNode, opts: FormatOptions): string {
+  if (root.hasErrors) return root.originalText
   return formatNodes(root.nodes, root.originalText, '', opts)
 }
 
@@ -60,7 +71,7 @@ function formatElement(
   const tagPrefix = `<${node.name} `
   const tagPrefixLen = indent.length + tagPrefix.length
 
-  const firstAttrLen = attrs.length > 0 ? serializeAttribute(attrs[0]).length : 0
+  const firstAttrLen = attrs.length > 0 ? measureAttribute(attrs[0]) : 0
   const closingLen = selfClose ? 3 : 1 // ' />' or '>'
   const caseBFirstLineLen = tagPrefixLen + firstAttrLen + (attrs.length === 1 ? closingLen : 0)
 
@@ -148,4 +159,14 @@ function formatOpenTagFallback(
     return attrIndent + serializeAttribute(a) + (isLast ? closing : '')
   })
   return [`<${name}`, ...attrLines].join('\n')
+}
+
+export const printers = {
+  'angular-attributes-ast': {
+    print(path: any, options: FormatOptions & { originalText: string }, _print: any): string {
+      const root = path.getValue() as RootNode
+      if (root.type !== 'root') return ''
+      return formatDocument(root, options)
+    },
+  },
 }

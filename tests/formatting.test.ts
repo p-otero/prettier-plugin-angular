@@ -5,7 +5,8 @@ import type { HtmlAttribute, RootNode, FormatOptions } from '../src/types'
 
 function attr(name: string, value = ''): HtmlAttribute {
   const span = { start: { offset: 0, line: 0, col: 0 }, end: { offset: 0, line: 0, col: 0 } }
-  return { name, value, sourceSpan: span }
+  const rawSource = value === '' ? name : `${name}="${value}"`
+  return { name, value, rawSource, sourceSpan: span }
 }
 
 describe('serializeAttribute', () => {
@@ -140,6 +141,32 @@ describe('formatDocument — attribute sorting integration', () => {
     const staticIdx = result.indexOf('class=')
     expect(inputIdx).toBeLessThan(outputIdx)
     expect(outputIdx).toBeLessThan(staticIdx)
+  })
+})
+
+describe('measureSingleLine — normalises multiline values', () => {
+  it('does not inflate measurement when attr value contains newlines', () => {
+    // Old code used serializeAttribute (with raw value) → embedded newline → huge length
+    // New code uses measureAttribute (normalised) → correct single-line estimate
+    const multiline: HtmlAttribute = {
+      name: '[attr.aria-describedby]',
+      value: 'id1\nid2',
+      rawSource: '[attr.aria-describedby]="id1\nid2"',
+      sourceSpan: { start: { offset: 0, line: 0, col: 0 }, end: { offset: 0, line: 0, col: 0 } },
+    }
+    const cls = attr('class', 'w-full')
+    // Normalised single-line: <p-select [attr.aria-describedby]="id1 id2" class="w-full" />
+    const expected = '<p-select [attr.aria-describedby]="id1 id2" class="w-full" />'.length
+    expect(measureSingleLine('p-select', [multiline, cls], '', true)).toBe(expected)
+  })
+})
+
+describe('formatDocument — parse error passthrough', () => {
+  it('returns original text verbatim when parser reports errors', () => {
+    // Unclosed tag causes angular-html-parser to report an error
+    const input = '<textarea formControlName="x">\n<label>test</label>'
+    const root = makeRoot(input)
+    expect(formatDocument(root, defaultOpts)).toBe(input)
   })
 })
 

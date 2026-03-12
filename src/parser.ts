@@ -14,7 +14,7 @@ function isBlock(node: any): boolean {
   return node.constructor?.name === 'Block'
 }
 
-function normalizeNode(node: any): HtmlNode {
+function normalizeNode(node: any, text: string): HtmlNode {
   if (isElement(node)) {
     const selfClose =
       node.endSourceSpan != null &&
@@ -26,12 +26,13 @@ function normalizeNode(node: any): HtmlNode {
         (a: any): HtmlAttribute => ({
           name: a.name,
           value: a.value ?? '',
+          rawSource: text.slice(a.sourceSpan.start.offset, a.sourceSpan.end.offset),
           sourceSpan: a.sourceSpan,
           nameSpan: a.nameSpan ?? a.keySpan,
           valueSpan: a.valueSpan,
         }),
       ),
-      children: (node.children ?? []).map(normalizeNode),
+      children: (node.children ?? []).map((child: any) => normalizeNode(child, text)),
       sourceSpan: node.sourceSpan,
       startSourceSpan: node.startSourceSpan,
       endSourceSpan: selfClose ? null : (node.endSourceSpan ?? null),
@@ -58,7 +59,7 @@ function normalizeNode(node: any): HtmlNode {
     return {
       type: 'block',
       name: node.name,
-      children: (node.children ?? []).map(normalizeNode),
+      children: (node.children ?? []).map((child: any) => normalizeNode(child, text)),
       sourceSpan: node.sourceSpan,
     } satisfies HtmlBlock
   }
@@ -73,10 +74,11 @@ export function parseAngularHtml(text: string): RootNode {
   const result = angularParse(text, { canSelfClose: true })
   if (result.errors.length > 0) {
     console.warn('angular-html-parser errors:', result.errors)
+    return { type: 'root', nodes: [], originalText: text, hasErrors: true }
   }
   return {
     type: 'root',
-    nodes: result.rootNodes.map(normalizeNode),
+    nodes: result.rootNodes.map(n => normalizeNode(n, text)),
     originalText: text,
   }
 }
