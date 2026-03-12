@@ -85,7 +85,11 @@ function formatElement(
     openTag = formatOpenTagFallback(node.name, attrs, indent, opts.tabWidth, selfClose)
   }
 
-  if (!hasChildren) return indent + openTag
+  if (!hasChildren) {
+    if (selfClose) return indent + openTag
+    // Element with an explicit close tag but no children (e.g. <textarea></textarea>)
+    return `${indent}${openTag}</${node.name}>`
+  }
 
   // Check if this is a single text-only child that fits on one line with the tag
   const singleTextChild =

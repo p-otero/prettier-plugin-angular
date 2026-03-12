@@ -161,6 +161,13 @@ describe('measureSingleLine — normalises multiline values', () => {
   })
 })
 
+describe('formatDocument — empty element with explicit close tag', () => {
+  it('preserves closing tag for empty non-void element (e.g. textarea)', () => {
+    const root = makeRoot('<textarea id="x" rows="3"></textarea>')
+    expect(formatDocument(root, defaultOpts)).toBe('<textarea id="x" rows="3"></textarea>')
+  })
+})
+
 describe('formatDocument — parse error passthrough', () => {
   it('returns original text verbatim when parser reports errors', () => {
     // Unclosed tag causes angular-html-parser to report an error
