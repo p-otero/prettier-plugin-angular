@@ -1,0 +1,141 @@
+import { describe, it, expect } from 'vitest'
+import { serializeAttribute, measureSingleLine, formatDocument } from '../src/printer'
+import { parseAngularHtml } from '../src/parser'
+import type { HtmlAttribute, RootNode, FormatOptions } from '../src/types'
+
+function attr(name: string, value = ''): HtmlAttribute {
+  const span = { start: { offset: 0, line: 0, col: 0 }, end: { offset: 0, line: 0, col: 0 } }
+  return { name, value, sourceSpan: span }
+}
+
+describe('serializeAttribute', () => {
+  it('serializes valued attribute', () => {
+    expect(serializeAttribute(attr('class', 'w-full'))).toBe('class="w-full"')
+  })
+  it('serializes binding attribute', () => {
+    expect(serializeAttribute(attr('[disabled]', 'isDisabled'))).toBe('[disabled]="isDisabled"')
+  })
+  it('serializes boolean attribute (empty value) without quotes', () => {
+    expect(serializeAttribute(attr('showIcon', ''))).toBe('showIcon')
+  })
+  it('serializes two-way binding', () => {
+    expect(serializeAttribute(attr('[(ngModel)]', 'value'))).toBe('[(ngModel)]="value"')
+  })
+})
+
+describe('measureSingleLine', () => {
+  it('measures tag + attrs + self-close', () => {
+    const attrs = [attr('class', 'w-full'), attr('showIcon', '')]
+    expect(measureSingleLine('input', attrs, '', true)).toBe('<input class="w-full" showIcon />'.length)
+  })
+  it('includes indentation in measurement', () => {
+    const attrs = [attr('class', 'x')]
+    expect(measureSingleLine('div', attrs, '  ', false)).toBe('  <div class="x">'.length)
+  })
+})
+
+const defaultOpts: FormatOptions = {
+  printWidth: 80,
+  tabWidth: 2,
+  angularAttributeSort: false,
+  angularAttributeOrder: ['ref', 'structural', 'twoWay', 'input', 'output', 'animation', 'static', 'boolean'],
+}
+
+function makeRoot(html: string): RootNode {
+  return parseAngularHtml(html)
+}
+
+describe('formatDocument — Case A (fits on one line)', () => {
+  it('keeps short element on one line', () => {
+    const root = makeRoot('<input type="text" />')
+    expect(formatDocument(root, defaultOpts)).toBe('<input type="text" />')
+  })
+  it('element with no attributes stays on one line', () => {
+    const root = makeRoot('<br />')
+    expect(formatDocument(root, defaultOpts)).toBe('<br />')
+  })
+  it('element with children that fits stays on one line', () => {
+    const root = makeRoot('<label for="x">text</label>')
+    expect(formatDocument(root, defaultOpts)).toBe('<label for="x">text</label>')
+  })
+})
+
+describe('formatDocument — Case B (first inline, rest aligned)', () => {
+  it('aligns attributes when line exceeds printWidth', () => {
+    const opts = { ...defaultOpts, printWidth: 40 }
+    const root = makeRoot('<p-select inputId="x" [options]="myOptionsArray" class="w-full" />')
+    const result = formatDocument(root, opts)
+    const lines = result.split('\n')
+    expect(lines[0]).toBe('<p-select inputId="x"')
+    const col = '<p-select '.length
+    expect(lines[1]).toBe(' '.repeat(col) + '[options]="myOptionsArray"')
+    expect(lines[2]).toBe(' '.repeat(col) + 'class="w-full" />')
+  })
+})
+
+describe('formatDocument — Case C (tag too long)', () => {
+  it('uses tabWidth indentation when tag name itself is long', () => {
+    const opts = { ...defaultOpts, printWidth: 30 }
+    const root = makeRoot('<my-very-long-component-name [x]="val" />')
+    const result = formatDocument(root, opts)
+    const lines = result.split('\n')
+    expect(lines[0]).toBe('<my-very-long-component-name')
+    expect(lines[1]).toBe('  [x]="val" />')
+  })
+})
+
+describe('formatDocument — closing tokens', () => {
+  it('self-closing /> on same line as last attribute (Case B)', () => {
+    const opts = { ...defaultOpts, printWidth: 20 }
+    const root = makeRoot('<input type="text" class="w-full" />')
+    const result = formatDocument(root, opts)
+    expect(result.trimEnd().endsWith('/>')).toBe(true)
+    const lines = result.split('\n')
+    expect(lines[lines.length - 1].trim()).not.toBe('/>')
+  })
+  it('> on same line as last attribute for element with children', () => {
+    const opts = { ...defaultOpts, printWidth: 20 }
+    const root = makeRoot('<label for="myId" class="label">text</label>')
+    const result = formatDocument(root, opts)
+    const lines = result.split('\n')
+    // The closing > should be at the end of the last open-tag attribute line, not standalone
+    expect(lines.every(l => l.trim() !== '>')).toBe(true)
+    const openTagLines = lines.filter(l => !l.trimStart().startsWith('</') && l.trim() !== '')
+    expect(openTagLines.some(l => l.endsWith('>'))).toBe(true)
+  })
+})
+
+describe('formatDocument — verbatim passthrough', () => {
+  it('preserves text nodes verbatim', () => {
+    const root = makeRoot('<p>hello world</p>')
+    expect(formatDocument(root, defaultOpts)).toBe('<p>hello world</p>')
+  })
+  it('preserves comment nodes verbatim', () => {
+    const root = makeRoot('<!-- my comment -->')
+    expect(formatDocument(root, defaultOpts)).toBe('<!-- my comment -->')
+  })
+})
+
+describe('formatDocument — attribute sorting integration', () => {
+  it('sorts attributes when angularAttributeSort is true', () => {
+    const opts = { ...defaultOpts, angularAttributeSort: true }
+    const root = makeRoot('<input class="x" (change)="fn()" [value]="v" />')
+    const result = formatDocument(root, opts)
+    const inputIdx = result.indexOf('[value]')
+    const outputIdx = result.indexOf('(change)')
+    const staticIdx = result.indexOf('class=')
+    expect(inputIdx).toBeLessThan(outputIdx)
+    expect(outputIdx).toBeLessThan(staticIdx)
+  })
+})
+
+describe('formatDocument — idempotency', () => {
+  it('formatting twice produces the same result', () => {
+    const opts = { ...defaultOpts, angularAttributeSort: true }
+    const input =
+      '<p-select inputId="x" [options]="opts" (change)="fn()" class="w-full" showIcon />'
+    const once = formatDocument(makeRoot(input), opts)
+    const twice = formatDocument(makeRoot(once), opts)
+    expect(twice).toBe(once)
+  })
+})
