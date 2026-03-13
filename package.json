@@ -1,5 +1,5 @@
 {
-  "name": "prettier-plugin-angular-attributes",
+  "name": "prettier-plugin-angular",
   "version": "0.1.0",
   "description": "Prettier plugin for Angular HTML attribute alignment and sorting",
   "main": "./dist/index.cjs",
