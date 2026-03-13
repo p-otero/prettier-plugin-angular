@@ -46,6 +46,20 @@ Attributes are sorted by category in this order:
 | `static` | `id="x"`, `class="foo"`, `formControlName="x"` |
 | `boolean` | `disabled`, `required`, `showIcon` |
 
+### Self-closing elements
+
+Elements with no real children are always output as self-closing, regardless of how they were written in the source:
+
+```html
+<!-- Input -->
+<app-my-component [value]="x" [label]="y"></app-my-component>
+
+<!-- Output -->
+<app-my-component [value]="x" [label]="y" />
+```
+
+This also applies to elements with only whitespace between their tags.
+
 ### Angular control flow formatted
 
 Elements inside `@if`, `@for`, `@switch`, `@defer` and other Angular control flow blocks are fully formatted — not emitted verbatim:
