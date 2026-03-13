@@ -9,13 +9,48 @@ function serializeAttributeCollapsed(attr: HtmlAttribute): string {
 }
 
 // Serialises an attribute for output.
-// Multi-line values (written across lines by the developer) are preserved via rawSource.
+// Multi-line values are re-indented so content sits at attrIndent+tabWidth and the
+// closing " sits at attrIndent — preserving any relative indentation between lines.
 // Single-line values are whitespace-normalised as before.
-export function serializeAttribute(attr: HtmlAttribute): string {
+export function serializeAttribute(
+  attr: HtmlAttribute,
+  attrIndent?: string,
+  tabWidth?: number,
+): string {
   if (attr.value === '') return attr.name
-  if (attr.value.includes('\n')) return attr.rawSource
+  if (attr.value.includes('\n')) {
+    if (attrIndent !== undefined && tabWidth !== undefined) {
+      return serializeMultilineAttribute(attr, attrIndent, tabWidth)
+    }
+    return attr.rawSource // fallback: no context available
+  }
   const normalizedValue = attr.value.replace(/\s+/g, ' ').trim()
   return `${attr.name}="${normalizedValue}"`
+}
+
+// Re-indents a multi-line attribute value. Preserves relative indentation between
+// content lines (e.g. ternary ? / : stay 2 spaces deeper than the condition).
+function serializeMultilineAttribute(
+  attr: HtmlAttribute,
+  attrIndent: string,
+  tabWidth: number,
+): string {
+  const lines = attr.value.split('\n')
+  // lines[0]  = "" (text immediately after the opening ")
+  // lines[1…n-1] = content lines
+  // lines[n]  = trailing whitespace before the closing "
+  const rawContent = lines.slice(1, -1).filter(l => l.trim().length > 0)
+  const contentIndent = attrIndent + ' '.repeat(tabWidth)
+
+  let reindented: string[]
+  if (rawContent.length === 0) {
+    reindented = []
+  } else {
+    const minIndent = Math.min(...rawContent.map(l => l.match(/^(\s*)/)?.[1].length ?? 0))
+    reindented = rawContent.map(l => contentIndent + l.slice(minIndent))
+  }
+
+  return [`${attr.name}="`, ...reindented, `${attrIndent}"`].join('\n')
 }
 
 export function measureSingleLine(
@@ -141,12 +176,14 @@ function formatElement(
   const closingLen = selfClose ? 3 : 1 // ' />' or '>'
   const caseBFirstLineLen = tagPrefixLen + firstAttrLen + (attrs.length === 1 ? closingLen : 0)
 
+  const hasMultilineAttr = attrs.some(a => a.value.includes('\n'))
+
   let openTag: string
-  if (singleLineLen <= opts.printWidth) {
+  if (!hasMultilineAttr && singleLineLen <= opts.printWidth) {
     openTag = formatOpenTagInline(node.name, attrs, selfClose)
   } else if (tagPrefixLen < opts.printWidth && caseBFirstLineLen <= opts.printWidth) {
     const firstAttrCol = tagPrefixLen // includes indent so aligned lines are correct for nested elements
-    openTag = formatOpenTagAligned(node.name, attrs, firstAttrCol, selfClose)
+    openTag = formatOpenTagAligned(node.name, attrs, firstAttrCol, selfClose, opts.tabWidth)
   } else {
     openTag = formatOpenTagFallback(node.name, attrs, indent, opts.tabWidth, selfClose)
   }
@@ -180,7 +217,7 @@ function formatElement(
 }
 
 function formatOpenTagInline(name: string, attrs: HtmlAttribute[], selfClose: boolean): string {
-  const attrsStr = attrs.map(serializeAttribute).join(' ')
+  const attrsStr = attrs.map(a => serializeAttribute(a)).join(' ')
   const closing = selfClose ? ' />' : '>'
   return attrsStr ? `<${name} ${attrsStr}${closing}` : `<${name}${closing}`
 }
@@ -190,19 +227,20 @@ function formatOpenTagAligned(
   attrs: HtmlAttribute[],
   firstAttrCol: number,
   selfClose: boolean,
+  tabWidth: number,
 ): string {
   if (attrs.length === 0) return selfClose ? `<${name} />` : `<${name}>`
   const padding = ' '.repeat(firstAttrCol)
   const closing = selfClose ? ' />' : '>'
   const [first, ...rest] = attrs
   if (rest.length === 0) {
-    return `<${name} ${serializeAttribute(first)}${closing}`
+    return `<${name} ${serializeAttribute(first, padding, tabWidth)}${closing}`
   }
   const restLines = rest.map((a, i) => {
     const isLast = i === rest.length - 1
-    return padding + serializeAttribute(a) + (isLast ? closing : '')
+    return padding + serializeAttribute(a, padding, tabWidth) + (isLast ? closing : '')
   })
-  return [`<${name} ${serializeAttribute(first)}`, ...restLines].join('\n')
+  return [`<${name} ${serializeAttribute(first, padding, tabWidth)}`, ...restLines].join('\n')
 }
 
 function formatOpenTagFallback(
@@ -217,7 +255,7 @@ function formatOpenTagFallback(
   const closing = selfClose ? ' />' : '>'
   const attrLines = attrs.map((a, i) => {
     const isLast = i === attrs.length - 1
-    return attrIndent + serializeAttribute(a) + (isLast ? closing : '')
+    return attrIndent + serializeAttribute(a, attrIndent, tabWidth) + (isLast ? closing : '')
   })
   return [`<${name}`, ...attrLines].join('\n')
 }
