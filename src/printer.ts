@@ -157,8 +157,9 @@ function formatElement(
         child.type === 'text' &&
         originalText.slice(child.sourceSpan.start.offset, child.sourceSpan.end.offset).trim() === '',
     )
-  const selfClose = node.endSourceSpan === null || allChildrenWhitespace
   const hasChildren = node.children.length > 0 && !allChildrenWhitespace
+  // Always self-close when there are no real children, regardless of original syntax
+  const selfClose = !hasChildren
 
   const singleLineLen = measureSingleLine(node.name, attrs, indent, selfClose)
 
@@ -183,9 +184,7 @@ function formatElement(
   }
 
   if (!hasChildren) {
-    if (selfClose) return indent + openTag
-    // Element with an explicit close tag but no children (e.g. <textarea></textarea>)
-    return `${indent}${openTag}</${node.name}>`
+    return indent + openTag
   }
 
   // Check if this is a single text-only child that fits on one line with the tag
