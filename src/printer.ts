@@ -149,8 +149,16 @@ function formatElement(
     ? sortAttributes(node.attrs, opts.angularAttributeOrder)
     : node.attrs
 
-  const selfClose = node.endSourceSpan === null
-  const hasChildren = node.children.length > 0
+  // Treat elements whose only children are whitespace as self-closing
+  const allChildrenWhitespace =
+    node.children.length > 0 &&
+    node.children.every(
+      child =>
+        child.type === 'text' &&
+        originalText.slice(child.sourceSpan.start.offset, child.sourceSpan.end.offset).trim() === '',
+    )
+  const selfClose = node.endSourceSpan === null || allChildrenWhitespace
+  const hasChildren = node.children.length > 0 && !allChildrenWhitespace
 
   const singleLineLen = measureSingleLine(node.name, attrs, indent, selfClose)
 
