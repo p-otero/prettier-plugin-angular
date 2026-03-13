@@ -46,20 +46,6 @@ Attributes are sorted by category in this order:
 | `static` | `id="x"`, `class="foo"`, `formControlName="x"` |
 | `boolean` | `disabled`, `required`, `showIcon` |
 
-### Multi-line attribute values preserved
-
-Developer-written multi-line values (e.g. ternary expressions) are preserved and re-indented to match the attribute's column:
-
-```html
-<p-select [options]="items"
-          [attr.aria-describedby]="
-            form.controls.companyId.invalid && form.controls.companyId.touched
-              ? 'companyId-error'
-              : null
-          "
-          id="companyId" />
-```
-
 ### Angular control flow formatted
 
 Elements inside `@if`, `@for`, `@switch`, `@defer` and other Angular control flow blocks are fully formatted — not emitted verbatim:
