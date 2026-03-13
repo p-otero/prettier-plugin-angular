@@ -156,8 +156,12 @@ function formatElement(
           .trim()
       : null
 
-  if (singleTextChild !== null && singleLineLen <= opts.printWidth) {
-    return `${indent}${openTag}${singleTextChild}</${node.name}>`
+  if (singleTextChild !== null) {
+    // singleLineLen measures only the open tag — add text + close tag for the real line length
+    const totalLen = singleLineLen + singleTextChild.length + node.name.length + 3 // </name>
+    if (totalLen <= opts.printWidth) {
+      return `${indent}${openTag}${singleTextChild}</${node.name}>`
+    }
   }
 
   const childIndent = indent + ' '.repeat(opts.tabWidth)
