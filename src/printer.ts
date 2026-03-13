@@ -65,10 +65,10 @@ function formatBlock(
   const children = node.children
     .map(child => {
       if (child.type === 'text') {
-        const trimmed = originalText
-          .slice(child.sourceSpan.start.offset, child.sourceSpan.end.offset)
-          .trim()
-        return trimmed ? `${indent}${trimmed}` : ''
+        return indentTextLines(
+          originalText.slice(child.sourceSpan.start.offset, child.sourceSpan.end.offset),
+          indent,
+        )
       }
       return formatNode(child, originalText, indent, opts)
     })
@@ -78,6 +78,16 @@ function formatBlock(
   return children
     ? `${indent}${header}\n${children}\n${indent}${footer}`
     : `${indent}${header}\n${indent}${footer}`
+}
+
+// Re-indents each non-empty line of a text node to the given indent level.
+// Handles multi-line text nodes (e.g. Angular @if blocks parsed as text by the HTML parser).
+function indentTextLines(text: string, indent: string): string {
+  const lines = text
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l !== '')
+  return lines.length === 0 ? '' : lines.map(l => `${indent}${l}`).join('\n')
 }
 
 function formatElement(
@@ -139,8 +149,7 @@ function formatElement(
           child.sourceSpan.start.offset,
           child.sourceSpan.end.offset,
         )
-        const trimmed = text.trim()
-        return trimmed ? `${childIndent}${trimmed}` : ''
+        return indentTextLines(text, childIndent)
       }
       return formatNode(child, originalText, childIndent, opts)
     })
