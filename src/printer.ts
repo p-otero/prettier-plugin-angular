@@ -106,7 +106,8 @@ function formatBlock(
     ? originalText.slice(node.endSourceSpan.start.offset, node.endSourceSpan.end.offset)
     : '}'
 
-  const children = formatChildren(node.children, originalText, indent, opts)
+  const childIndent = indent + ' '.repeat(opts.tabWidth)
+  const children = formatChildren(node.children, originalText, childIndent, opts)
 
   return children
     ? `${indent}${header}\n${children}\n${indent}${footer}`
