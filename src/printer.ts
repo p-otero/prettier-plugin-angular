@@ -1,4 +1,4 @@
-import type { HtmlAttribute, HtmlNode, RootNode, FormatOptions } from './types'
+import type { HtmlAttribute, HtmlBlock, HtmlNode, RootNode, FormatOptions } from './types'
 import { sortAttributes } from './attribute-sorter'
 
 // Serialises an attribute, normalising internal whitespace in the value so that
@@ -45,7 +45,39 @@ function formatNode(
   opts: FormatOptions,
 ): string {
   if (node.type === 'element') return formatElement(node, originalText, indent, opts)
+  if (node.type === 'block') return formatBlock(node, originalText, indent, opts)
   return originalText.slice(node.sourceSpan.start.offset, node.sourceSpan.end.offset)
+}
+
+// Formats an Angular control-flow block (@if, @for, @switch, @else, @case, @defer, …).
+// Children are formatted at the same indent level as the block itself (Angular convention).
+function formatBlock(
+  node: HtmlBlock,
+  originalText: string,
+  indent: string,
+  opts: FormatOptions,
+): string {
+  const header = originalText.slice(node.startSourceSpan.start.offset, node.startSourceSpan.end.offset)
+  const footer = node.endSourceSpan
+    ? originalText.slice(node.endSourceSpan.start.offset, node.endSourceSpan.end.offset)
+    : '}'
+
+  const children = node.children
+    .map(child => {
+      if (child.type === 'text') {
+        const trimmed = originalText
+          .slice(child.sourceSpan.start.offset, child.sourceSpan.end.offset)
+          .trim()
+        return trimmed ? `${indent}${trimmed}` : ''
+      }
+      return formatNode(child, originalText, indent, opts)
+    })
+    .filter(s => s !== '')
+    .join('\n')
+
+  return children
+    ? `${indent}${header}\n${children}\n${indent}${footer}`
+    : `${indent}${header}\n${indent}${footer}`
 }
 
 function formatElement(

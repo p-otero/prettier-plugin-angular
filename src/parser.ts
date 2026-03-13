@@ -61,6 +61,8 @@ function normalizeNode(node: any, text: string): HtmlNode {
       name: node.name,
       children: (node.children ?? []).map((child: any) => normalizeNode(child, text)),
       sourceSpan: node.sourceSpan,
+      startSourceSpan: node.startSourceSpan ?? node.sourceSpan,
+      endSourceSpan: node.endSourceSpan ?? null,
     } satisfies HtmlBlock
   }
 

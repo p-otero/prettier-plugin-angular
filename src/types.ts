@@ -48,6 +48,8 @@ export interface HtmlBlock {
   name: string
   children: HtmlNode[]
   sourceSpan: ParseSourceSpan
+  startSourceSpan: ParseSourceSpan // @if (...) { / @for (...) { / @else {
+  endSourceSpan: ParseSourceSpan | null // }
 }
 
 export interface HtmlExpansion {

@@ -52,10 +52,32 @@ describe('integration — prettier.format()', () => {
     expect(twice).toBe(once)
   })
 
-  it('preserves @if block verbatim around formatted element', async () => {
-    const input = `@if (show) {\n  <div class="x" [id]="myId">text</div>\n}`
-    const result = await format(input)
-    expect(result).toContain('@if (show)')
-    expect(result).toContain('<div')
+  it('formats elements inside @if block', async () => {
+    // Attributes inside the block must be sorted and aligned, not emitted verbatim
+    const input = `@if (show) {\n  <div class="x" (click)="fn()" [id]="myId">text</div>\n}`
+    const result = await format(input, { angularAttributeSort: true })
+    // @if header preserved
+    expect(result).toContain('@if (show) {')
+    // attributes sorted: [id] (input) before (click) (output) before class (static)
+    const idIdx = result.indexOf('[id]')
+    const clickIdx = result.indexOf('(click)')
+    const classIdx = result.indexOf('class=')
+    expect(idIdx).toBeLessThan(clickIdx)
+    expect(clickIdx).toBeLessThan(classIdx)
+    // idempotent
+    const second = await format(result, { angularAttributeSort: true })
+    expect(second).toBe(result)
+  })
+
+  it('formats nested @if blocks', async () => {
+    const input = `@if (a) {\n@if (b) {\n<div class="x" [id]="y" />\n}\n}`
+    const result = await format(input, { angularAttributeSort: true })
+    expect(result).toContain('@if (a) {')
+    expect(result).toContain('@if (b) {')
+    // inner element formatted
+    expect(result).toContain('[id]="y"')
+    // idempotent
+    const second = await format(result, { angularAttributeSort: true })
+    expect(second).toBe(result)
   })
 })
