@@ -62,32 +62,51 @@ function formatBlock(
     ? originalText.slice(node.endSourceSpan.start.offset, node.endSourceSpan.end.offset)
     : '}'
 
-  const children = node.children
-    .map(child => {
-      if (child.type === 'text') {
-        return indentTextLines(
-          originalText.slice(child.sourceSpan.start.offset, child.sourceSpan.end.offset),
-          indent,
-        )
-      }
-      return formatNode(child, originalText, indent, opts)
-    })
-    .filter(s => s !== '')
-    .join('\n')
+  const children = formatChildren(node.children, originalText, indent, opts)
 
   return children
     ? `${indent}${header}\n${children}\n${indent}${footer}`
     : `${indent}${header}\n${indent}${footer}`
 }
 
-// Re-indents each non-empty line of a text node to the given indent level.
-// Handles multi-line text nodes (e.g. Angular @if blocks parsed as text by the HTML parser).
-function indentTextLines(text: string, indent: string): string {
-  const lines = text
-    .split('\n')
-    .map(l => l.trim())
-    .filter(l => l !== '')
-  return lines.length === 0 ? '' : lines.map(l => `${indent}${l}`).join('\n')
+// Matches Angular control-flow block openers: @if/@for/@else/@switch/@case/… that end with '{'
+const BLOCK_OPENER = /@(?:if|else(?:\s+if)?|for|switch|case|default|defer|placeholder|loading|error|empty)\b.*\{$/
+// Matches lines that close a block (start with '}'), including '} @else {'
+const BLOCK_CLOSER = /^\}/
+
+// Formats a list of children (text + element/block nodes) tracking the depth of Angular
+// control-flow blocks that the HTML parser leaves as plain text nodes.
+// `baseIndent` is the childIndent of the parent element.
+function formatChildren(
+  nodes: HtmlNode[],
+  originalText: string,
+  baseIndent: string,
+  opts: FormatOptions,
+): string {
+  const results: string[] = []
+  let depth = 0
+
+  for (const child of nodes) {
+    if (child.type === 'text') {
+      const raw = originalText.slice(child.sourceSpan.start.offset, child.sourceSpan.end.offset)
+      for (const raw_line of raw.split('\n')) {
+        const line = raw_line.trim()
+        if (!line) continue
+        if (BLOCK_CLOSER.test(line) && depth > 0) depth--
+        results.push(' '.repeat(opts.tabWidth * depth) + line)
+        if (BLOCK_OPENER.test(line)) depth++
+      }
+    } else {
+      const childIndent = baseIndent + ' '.repeat(opts.tabWidth * depth)
+      results.push(formatNode(child, originalText, childIndent, opts))
+    }
+  }
+
+  // Prefix each collected line with baseIndent before joining
+  return results
+    .filter(s => s !== '')
+    .map(s => (s.startsWith(baseIndent) ? s : baseIndent + s))
+    .join('\n')
 }
 
 function formatElement(
@@ -142,19 +161,7 @@ function formatElement(
   }
 
   const childIndent = indent + ' '.repeat(opts.tabWidth)
-  const children = node.children
-    .map(child => {
-      if (child.type === 'text') {
-        const text = originalText.slice(
-          child.sourceSpan.start.offset,
-          child.sourceSpan.end.offset,
-        )
-        return indentTextLines(text, childIndent)
-      }
-      return formatNode(child, originalText, childIndent, opts)
-    })
-    .filter(s => s !== '')
-    .join('\n')
+  const children = formatChildren(node.children, originalText, childIndent, opts)
 
   return `${indent}${openTag}\n${children}\n${indent}</${node.name}>`
 }
