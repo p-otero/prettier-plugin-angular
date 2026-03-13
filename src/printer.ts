@@ -113,13 +113,7 @@ function formatBlock(
     : `${indent}${header}\n${indent}${footer}`
 }
 
-// Matches Angular control-flow block openers: @if/@for/@else/@switch/@case/… that end with '{'
-const BLOCK_OPENER = /@(?:if|else(?:\s+if)?|for|switch|case|default|defer|placeholder|loading|error|empty)\b.*\{$/
-// Matches lines that close a block (start with '}'), including '} @else {'
-const BLOCK_CLOSER = /^\}/
-
-// Formats a list of children (text + element/block nodes) tracking the depth of Angular
-// control-flow blocks that the HTML parser leaves as plain text nodes.
+// Formats a list of children (text + element/block nodes).
 // `baseIndent` is the childIndent of the parent element.
 function formatChildren(
   nodes: HtmlNode[],
@@ -128,29 +122,20 @@ function formatChildren(
   opts: FormatOptions,
 ): string {
   const results: string[] = []
-  let depth = 0
 
   for (const child of nodes) {
     if (child.type === 'text') {
       const raw = originalText.slice(child.sourceSpan.start.offset, child.sourceSpan.end.offset)
       for (const raw_line of raw.split('\n')) {
         const line = raw_line.trim()
-        if (!line) continue
-        if (BLOCK_CLOSER.test(line) && depth > 0) depth--
-        results.push(' '.repeat(opts.tabWidth * depth) + line)
-        if (BLOCK_OPENER.test(line)) depth++
+        if (line) results.push(baseIndent + line)
       }
     } else {
-      const childIndent = baseIndent + ' '.repeat(opts.tabWidth * depth)
-      results.push(formatNode(child, originalText, childIndent, opts))
+      results.push(formatNode(child, originalText, baseIndent, opts))
     }
   }
 
-  // Prefix each collected line with baseIndent before joining
-  return results
-    .filter(s => s !== '')
-    .map(s => (s.startsWith(baseIndent) ? s : baseIndent + s))
-    .join('\n')
+  return results.filter(s => s !== '').join('\n')
 }
 
 function formatElement(

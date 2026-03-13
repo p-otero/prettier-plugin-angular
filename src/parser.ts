@@ -73,7 +73,7 @@ function normalizeNode(node: any, text: string): HtmlNode {
 }
 
 export function parseAngularHtml(text: string): RootNode {
-  const result = angularParse(text, { canSelfClose: true })
+  const result = angularParse(text, { canSelfClose: true, tokenizeAngularBlocks: true })
   if (result.errors.length > 0) {
     console.warn('angular-html-parser errors:', result.errors)
     return { type: 'root', nodes: [], originalText: text, hasErrors: true }
