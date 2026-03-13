@@ -12,7 +12,9 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
@@ -21,7 +23,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "angular-html-parser": "^5.2.0"
+    "angular-html-parser": "^10.4.0"
   },
   "peerDependencies": {
     "prettier": ">=3.0.0"
@@ -34,6 +36,12 @@
     "typescript": "^5.4.0",
     "vitest": "^2.0.0"
   },
-  "keywords": ["prettier", "prettier-plugin", "angular", "html", "formatter"],
+  "keywords": [
+    "prettier",
+    "prettier-plugin",
+    "angular",
+    "html",
+    "formatter"
+  ],
   "license": "MIT"
 }
