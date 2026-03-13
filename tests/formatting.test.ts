@@ -162,9 +162,19 @@ describe('measureSingleLine — normalises multiline values', () => {
 })
 
 describe('formatDocument — empty element with explicit close tag', () => {
-  it('self-closes element with no children even if source had explicit close tag', () => {
+  it('keeps explicit close tag for standard HTML elements with no children', () => {
     const root = makeRoot('<textarea id="x" rows="3"></textarea>')
-    expect(formatDocument(root, defaultOpts)).toBe('<textarea id="x" rows="3" />')
+    expect(formatDocument(root, defaultOpts)).toBe('<textarea id="x" rows="3"></textarea>')
+  })
+
+  it('self-closes custom elements (hyphenated) with no children', () => {
+    const root = makeRoot('<app-foo [value]="x"></app-foo>')
+    expect(formatDocument(root, defaultOpts)).toBe('<app-foo [value]="x" />')
+  })
+
+  it('self-closes void elements', () => {
+    const root = makeRoot('<input type="text" id="x">')
+    expect(formatDocument(root, defaultOpts)).toBe('<input type="text" id="x" />')
   })
 })
 

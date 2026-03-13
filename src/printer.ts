@@ -1,6 +1,19 @@
 import type { HtmlAttribute, HtmlBlock, HtmlNode, RootNode, FormatOptions } from './types'
 import { sortAttributes } from './attribute-sorter'
 
+// HTML void elements never have children and are always self-closing.
+const VOID_ELEMENTS = new Set([
+  'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+  'link', 'meta', 'param', 'source', 'track', 'wbr',
+])
+
+// Only void elements and custom elements (names containing a hyphen, e.g. app-foo,
+// ng-container, p-select) can be self-closed. Standard HTML elements like <div>, <span>,
+// <p>, etc. must keep an explicit closing tag.
+function canSelfClose(tagName: string): boolean {
+  return VOID_ELEMENTS.has(tagName) || tagName.includes('-')
+}
+
 // Collapses internal whitespace to a single line — used only for length measurement.
 function serializeAttributeCollapsed(attr: HtmlAttribute): string {
   if (attr.value === '') return attr.name
@@ -158,8 +171,10 @@ function formatElement(
         originalText.slice(child.sourceSpan.start.offset, child.sourceSpan.end.offset).trim() === '',
     )
   const hasChildren = node.children.length > 0 && !allChildrenWhitespace
-  // Always self-close when there are no real children, regardless of original syntax
-  const selfClose = !hasChildren
+  // Self-close only when allowed: no real children AND the element supports self-closing
+  // (void elements or custom elements with a hyphen in the name).
+  // Standard HTML elements (<div>, <span>, etc.) must keep an explicit closing tag.
+  const selfClose = !hasChildren && canSelfClose(node.name)
 
   const singleLineLen = measureSingleLine(node.name, attrs, indent, selfClose)
 
@@ -184,7 +199,8 @@ function formatElement(
   }
 
   if (!hasChildren) {
-    return indent + openTag
+    if (selfClose) return indent + openTag
+    return `${indent}${openTag}</${node.name}>`
   }
 
   // Check if this is a single text-only child that fits on one line with the tag
