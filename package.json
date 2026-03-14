@@ -43,5 +43,14 @@
     "html",
     "formatter"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "author": "p-otero",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/p-otero/prettier-plugin-angular.git"
+  },
+  "homepage": "https://github.com/p-otero/prettier-plugin-angular#readme",
+  "bugs": {
+    "url": "https://github.com/p-otero/prettier-plugin-angular/issues"
+  }
 }
